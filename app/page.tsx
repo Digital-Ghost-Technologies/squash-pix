@@ -1,103 +1,246 @@
-import Image from "next/image";
+"use client"
+
+import { Button } from '@/components/ui/button';
+import { DropZone } from '@/components/ui/drop-zone';
+import { FormatSelector } from '@/components/ui/format-selector';
+import { ImageCard } from '@/components/ui/image-card';
+import { PresetSelector } from '@/components/ui/preset-selector';
+import { QualitySlider } from '@/components/ui/quality-slider';
+import { QualityPreset } from '@/lib/constants';
+import { downloadImage } from '@/lib/download-image';
+import { downloadAsZip } from '@/lib/download-zip';
+import { compressAndUpdateImage } from '@/lib/image-processing/compress-image';
+import { processImage } from '@/lib/image-processing/image-processor';
+import { CompressionSettings, ImageFile } from '@/lib/types/images';
+import { generateId } from '@/lib/utils';
+import { useCallback, useEffect, useState } from 'react';
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [images, setImages] = useState<ImageFile[]>([]);
+  const [settings, setSettings] = useState<CompressionSettings>({
+    format: 'webp',
+    quality: 80
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  // Helpers for updating state (these wrap setImages so lib stays UI-agnostic)
+  const updateProgress = (id: string, progress: number) => {
+    setImages((prev) =>
+      prev.map((img) => (img.id === id ? { ...img, progress } : img))
+    );
+  };
+
+  const updateStatus = (id: string, updates: Partial<ImageFile>) => {
+    setImages((prev) =>
+      prev.map((img) => (img.id === id ? { ...img, ...updates } : img))
+    );
+  };
+
+  // 🟢 Cleanup effect for all object URLs
+  useEffect(() => {
+    return () => {
+      images.forEach(img => {
+        if (img.compressedUrl) URL.revokeObjectURL(img.compressedUrl);
+        if (img.originalUrl) URL.revokeObjectURL(img.originalUrl);
+      });
+    };
+  }, [images]);
+
+  const processImagesWithSettings = useCallback(async (files: File[], currentSettings: CompressionSettings) => {
+    const newImages: ImageFile[] = files.map(file => ({
+      id: generateId(),
+      file,
+      originalSize: file.size,
+      compressedSize: 0,
+      originalUrl: URL.createObjectURL(file),
+      compressedUrl: '',
+      format: currentSettings.format,
+      quality: currentSettings.quality,
+      status: 'pending',
+      progress: 0
+    }));
+
+    setImages(prev => [...prev, ...newImages]);
+    setIsProcessing(true);
+
+    // Process images one by one
+    for (const image of newImages) {
+      await compressAndUpdateImage(
+        image,
+        currentSettings,
+        updateProgress,
+        updateStatus
+      );
+    }
+
+    setIsProcessing(false);
+  }, []);
+
+  // Handle new file selection
+  const handleFileSelected = useCallback(
+    async (files: File[]) => {
+      await processImagesWithSettings(files, settings);
+    },
+    [settings, processImagesWithSettings]
+  );
+
+  // Reprocess images when settings change
+  const handleSettingsChange = useCallback(async (newSettings: Partial<CompressionSettings>, keepPreset = false) => {
+    const updatedSettings = { ...settings, ...newSettings };
+    setSettings(updatedSettings);
+
+    // Clear selected preset when manually adjusting settings (unless explicitly keeping it)
+    if (!keepPreset) {
+      setSelectedPreset(null);
+    }
+
+    // Reprocess existing images with new settings
+    const imagesToReprocess = images.filter(img => img.status === 'completed');
+    if (imagesToReprocess.length > 0 && !isProcessing) {
+      setIsProcessing(true);
+
+      for (const image of imagesToReprocess) {
+        try {
+          setImages(prev => prev.map(img =>
+            img.id === image.id
+              ? { ...img, status: 'processing' as const, progress: 0, format: updatedSettings.format, quality: updatedSettings.quality }
+              : img
+          ));
+
+          const result = await processImage(
+            image.file,
+            updatedSettings.format,
+            updatedSettings.quality,
+            (progress) => {
+              setImages(prev => prev.map(img =>
+                img.id === image.id
+                  ? { ...img, progress }
+                  : img
+              ));
+            }
+          );
+
+          // Clean up old compressed URL
+          if (image.compressedUrl) {
+            URL.revokeObjectURL(image.compressedUrl);
+          }
+
+          const compressedUrl = URL.createObjectURL(result.blob);
+
+          setImages(prev => prev.map(img =>
+            img.id === image.id
+              ? {
+                ...img,
+                compressedUrl,
+                compressedBlob: result.blob, // Store the blob here too
+                compressedSize: result.size,
+                status: 'completed' as const,
+                progress: 100
+              }
+              : img
+          ));
+        } catch (error) {
+          console.error('Reprocessing failed:', error);
+          setImages(prev => prev.map(img =>
+            img.id === image.id
+              ? { ...img, status: 'error' as const }
+              : img
+          ));
+        }
+      }
+
+      setIsProcessing(false);
+    }
+  }, [settings, images, isProcessing]);
+
+  const handleQualityCommit = useCallback((quality: number) => {
+    handleSettingsChange({ quality });
+  }, [handleSettingsChange]);
+
+  const handlePresetSelect = useCallback((preset: QualityPreset) => {
+    const presetName = preset.name;
+    if (presetName) {
+      setSelectedPreset(presetName);
+      handleSettingsChange(preset.settings, true); // keepPreset = true
+    }
+  }, [handleSettingsChange]);
+
+  //Image handle funtions
+  const handleDeleteImage = useCallback((id: string) => {
+    setImages(prev => {
+      const imageToRemove = prev.find(img => img.id === id);
+      if (imageToRemove && imageToRemove.compressedUrl) {
+        URL.revokeObjectURL(imageToRemove.compressedUrl);
+      } else if (imageToRemove && imageToRemove.originalUrl) {
+        URL.revokeObjectURL(imageToRemove.originalUrl);
+      }
+      return prev.filter(img => img.id !== id);
+    });
+  }, []);
+
+  const handleDownloadImage = useCallback((id: string) => {
+    const image = images.find(img => img.id === id);
+    if (image) {
+      downloadImage(image);
+    }
+  }, [images]);
+
+  return (
+    <div className="font-sans bg-accent min-h-screen">
+      <main className="container mx-auto px-4 py-8 space-y-8">
+        <section className='flex flex-col items-center justify-center'>
+          <h1 className="text-5xl font-bold">Welcome to SquashPix</h1>
+          <p className="mt-4 text-foreground">
+            Upload your images and convert them to modern formats for better web performance.</p>
+          <p className="text-foreground"> All processing happens in your browser for complete privacy.</p>
+        </section>
+
+        <section className="space-y-6">
+          <DropZone onFileSelected={handleFileSelected} isProcessing={false} />
+        </section>
+
+        {/* Settings Panel */}
+        <section className="bg-background border-border rounded-xl shadow-sm p-6 space-y-6">
+          <h2 className="text-2xl text-foreground font-bold">Compression Settings</h2>
+          <div className="mt-4">
+            <FormatSelector selectedFormat={settings.format} onFormatChange={(format) => handleSettingsChange({ format: format as CompressionSettings['format'] })}></FormatSelector>
+          </div>
+          <div className="mt-4">
+            <QualitySlider
+              defaultQuality={settings.quality}
+              onQualityCommit={handleQualityCommit}
+              disabled={isProcessing}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+          </div>
+          <div className="mt-4">
+            <PresetSelector
+              activePreset={selectedPreset}
+              onPresetSelect={handlePresetSelect}
+            />
+          </div>
+        </section>
+
+        {/* Results Section */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold text-foreground">Your Images ({images.length})</h3>
+            {images.length > 0 && (
+              <Button className="cursor-pointer" onClick={() => downloadAsZip(images)}>Download All</Button>
+            )}
+          </div>
+          <div className="space-y-3">
+            {images.map(image => (
+              <ImageCard
+                key={image.id}
+                image={image}
+                onDelete={() => handleDeleteImage(image.id)}
+                onDownload={() => handleDownloadImage(image.id)}
+              />
+            ))}
+          </div>
+        </section>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
