@@ -1,5 +1,6 @@
-import { Donut, Heart } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import Link from "next/dist/client/link";
+import Image from 'next/image';
 import { ThemeToggle } from "../ui/theme-toggle";
 
 export function Header() {
@@ -9,9 +10,12 @@ export function Header() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Link href="/" className="flex items-center gap-3">
-                            <div className="p-2 bg-gradient-to-br from-cyan-500 to-purple-500 rounded-xl">
-                                <Donut className="w-6 h-6 text-white" />
-                            </div>
+                            <Image
+                                src="/favicon.svg"
+                                alt="SquashPix Logo"
+                                width={56}
+                                height={56}
+                            />
                             <div>
                                 <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
                                     SquashPix

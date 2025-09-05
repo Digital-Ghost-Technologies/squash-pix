@@ -8,6 +8,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Squash Pix - Convert & Compress Images",
   description: "Convert and compress images to WebP, AVIF, JPEG XL formats",
+  icons: {
+    icon: "/favicon.svg", // main favicon
+    shortcut: "/favicon.svg", // browser shortcuts
+    apple: "/favicon.svg", // iOS PWA / Safari
+  },
 };
 
 export default function RootLayout({

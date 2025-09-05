@@ -15,12 +15,12 @@ export function PresetSelector({ activePreset, onPresetSelect }: PresetSelectorP
                 <Settings className='w-4 h-4 text-indigo-500' />
                 <span className="text-sm font-medium text-foreground">Quick Presets</span>
             </div>
-            <div className="flex flex-row gap-8 space-y-2">
+            <div className="flex flex-row flex-wrap gap-8 space-y-2">
                 {qualityPresets.map((preset) => (
                     <Button
                         key={preset.name}
                         variant={activePreset === preset.name ? 'default' : 'outline'}
-                        className="flex flex-col text-left items-start h-full py-3 px-4 cursor-pointer"
+                        className="flex flex-col text-left items-start h-full md:w-80 w-full py-3 px-4 cursor-pointer"
                         onClick={() => onPresetSelect(preset)}
                     >
                         <div className='space-y-2'>
