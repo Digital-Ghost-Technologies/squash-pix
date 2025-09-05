@@ -2,6 +2,7 @@ import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { exo2, spaceMono } from "@/lib/font";
+import { GoogleTagManager } from '@next/third-parties/google';
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -22,6 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <GoogleTagManager gtmId="GTM-W7VZXWBZ" />
       <body className={`${exo2.variable} ${spaceMono.variable} antialiased`}>
         <ThemeProvider>
           <div className="flex flex-col min-h-screen">
