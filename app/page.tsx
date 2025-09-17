@@ -1,5 +1,6 @@
 "use client"
 
+import { AdUnit } from '@/components/ad-unit';
 import { Button } from '@/components/ui/button';
 import { DropZone } from '@/components/ui/drop-zone';
 import { FormatSelector } from '@/components/ui/format-selector';
@@ -219,6 +220,15 @@ export default function Home() {
               onPresetSelect={handlePresetSelect}
             />
           </div>
+        </section>
+
+        {/* Ad Section */}
+        <section className="w-full flex justify-center py-4">
+          <AdUnit 
+            adSlot="1234567890" 
+            adFormat="auto"
+            className="w-full max-w-4xl"
+          />
         </section>
 
         {/* Results Section */}

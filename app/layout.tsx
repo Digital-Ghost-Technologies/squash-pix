@@ -5,7 +5,6 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { exo2, spaceMono } from "@/lib/font";
 import { GoogleTagManager } from '@next/third-parties/google';
 import type { Metadata } from "next";
-import Head from "next/head";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -28,9 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <Head>
-        <AdSense pId="ca-pub-1050367821834787" />
-      </Head>
+      <AdSense pId="ca-pub-1050367821834787" />
       <GoogleTagManager gtmId="GTM-W7VZXWBZ" />
       <body className={`${exo2.variable} ${spaceMono.variable} antialiased`}>
         <ThemeProvider>
