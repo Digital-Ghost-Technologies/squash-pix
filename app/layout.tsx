@@ -28,7 +28,7 @@ export default function RootLayout({
         <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1050367821834787"
-          strategy='lazyOnload'
+          strategy="afterInteractive"
           crossOrigin="anonymous"></Script>
       </head>
       <GoogleTagManager gtmId="GTM-W7VZXWBZ" />
