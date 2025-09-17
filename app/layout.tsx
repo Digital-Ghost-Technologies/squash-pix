@@ -15,6 +15,9 @@ export const metadata: Metadata = {
     shortcut: "/favicon.svg", // browser shortcuts
     apple: "/favicon.svg", // iOS PWA / Safari
   },
+  other: {
+    "google-adsense-account": "ca-pub-1050367821834787",
+  }
 };
 
 export default function RootLayout({
