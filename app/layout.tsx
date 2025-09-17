@@ -1,3 +1,4 @@
+import { AdSense } from "@/components/ad-sense";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -28,8 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <Head>
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1050367821834787"
-          crossorigin="anonymous"></script>
+        <AdSense pId="ca-pub-1050367821834787" />
       </Head>
       <GoogleTagManager gtmId="GTM-W7VZXWBZ" />
       <body className={`${exo2.variable} ${spaceMono.variable} antialiased`}>
