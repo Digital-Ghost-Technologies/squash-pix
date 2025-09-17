@@ -9,15 +9,14 @@ interface AdUnitProps {
   className?: string;
 }
 
-export function AdUnit({ 
-  adSlot, 
-  adFormat = 'auto', 
+export function AdUnit({
+  adSlot,
+  adFormat = 'auto',
   fullWidthResponsive = true,
-  className = '' 
+  className = ''
 }: AdUnitProps) {
   useEffect(() => {
     try {
-      // @ts-ignore
       (window.adsbygoogle = window.adsbygoogle || []).push({});
     } catch (err) {
       console.error('AdSense error:', err);
@@ -28,7 +27,7 @@ export function AdUnit({
     <div className={`w-full ${className}`}>
       <ins
         className="adsbygoogle"
-        style={{ 
+        style={{
           display: 'block',
           minWidth: '300px',
           minHeight: '250px'
